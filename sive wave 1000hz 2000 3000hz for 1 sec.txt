@@ -1,0 +1,308 @@
+#include "main.h"
+
+
+DAC_HandleTypeDef hdac;
+
+TIM_HandleTypeDef htim2;
+
+uint32_t counter1 = 0;
+uint32_t counter2 = 0;
+uint32_t counter3 = 0;
+uint32_t countertime = 0;
+uint8_t time = 0;
+uint32_t K1 = 107374*1000; // Increment value
+uint32_t K2 = 107374*2000;
+uint32_t K3 = 107374*3000;
+const uint16_t sineLookupTable[] = {
+2048, 2098, 2148, 2199, 2249, 2299, 2349, 2398,
+2448, 2497, 2546, 2594, 2643, 2690, 2738, 2785,
+2832, 2878, 2924, 2969, 3013, 3057, 3101, 3144,
+3186, 3227, 3268, 3308, 3347, 3386, 3423, 3460,
+3496, 3531, 3565, 3599, 3631, 3663, 3693, 3722,
+3751, 3778, 3805, 3830, 3854, 3877, 3899, 3920,
+3940, 3959, 3976, 3993, 4008, 4022, 4035, 4046,
+4057, 4066, 4074, 4081, 4086, 4090, 4094, 4095,
+4096, 4095, 4094, 4090, 4086, 4081, 4074, 4066,
+4057, 4046, 4035, 4022, 4008, 3993, 3976, 3959,
+3940, 3920, 3899, 3877, 3854, 3830, 3805, 3778,
+3751, 3722, 3693, 3663, 3631, 3599, 3565, 3531,
+3496, 3460, 3423, 3386, 3347, 3308, 3268, 3227,
+3186, 3144, 3101, 3057, 3013, 2969, 2924, 2878,
+2832, 2785, 2738, 2690, 2643, 2594, 2546, 2497,
+2448, 2398, 2349, 2299, 2249, 2199, 2148, 2098,
+2048, 1998, 1948, 1897, 1847, 1797, 1747, 1698,
+1648, 1599, 1550, 1502, 1453, 1406, 1358, 1311,
+1264, 1218, 1172, 1127, 1083, 1039, 995, 952,
+910, 869, 828, 788, 749, 710, 673, 636,
+600, 565, 531, 497, 465, 433, 403, 374,
+345, 318, 291, 266, 242, 219, 197, 176,
+156, 137, 120, 103, 88, 74, 61, 50,
+39, 30, 22, 15, 10, 6, 2, 1,
+0, 1, 2, 6, 10, 15, 22, 30,
+39, 50, 61, 74, 88, 103, 120, 137,
+156, 176, 197, 219, 242, 266, 291, 318,
+345, 374, 403, 433, 465, 497, 531, 565,
+600, 636, 673, 710, 749, 788, 828, 869,
+910, 952, 995, 1039, 1083, 1127, 1172, 1218,
+1264, 1311, 1358, 1406, 1453, 1502, 1550, 1599,
+1648, 1698, 1747, 1797, 1847, 1897, 1948, 1998};
+
+
+void SystemClock_Config(void);
+static void MX_GPIO_Init(void);
+static void MX_DAC_Init(void);
+static void MX_TIM2_Init(void);
+
+int main(void)
+{
+
+
+  HAL_Init();
+
+  SystemClock_Config();
+
+  MX_GPIO_Init();
+  MX_DAC_Init();
+  MX_TIM2_Init();
+  HAL_TIM_Base_Start_IT(&htim2);
+HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
+
+  while (1)
+  {
+   
+  }
+  /* USER CODE END 3 */
+}
+
+/**
+  * @brief System Clock Configuration
+  * @retval None
+  */
+void SystemClock_Config(void)
+{
+  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+
+  /** Configure the main internal regulator output voltage
+  */
+  __HAL_RCC_PWR_CLK_ENABLE();
+  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+
+  /** Initializes the RCC Oscillators according to the specified parameters
+  * in the RCC_OscInitTypeDef structure.
+  */
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Initializes the CPU, AHB and APB buses clocks
+  */
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+
+/**
+  * @brief DAC Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_DAC_Init(void)
+{
+
+  /* USER CODE BEGIN DAC_Init 0 */
+
+  /* USER CODE END DAC_Init 0 */
+
+  DAC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN DAC_Init 1 */
+
+  /* USER CODE END DAC_Init 1 */
+
+  /** DAC Initialization
+  */
+  hdac.Instance = DAC;
+  if (HAL_DAC_Init(&hdac) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** DAC channel OUT1 config
+  */
+  sConfig.DAC_Trigger = DAC_TRIGGER_T2_TRGO;
+  sConfig.DAC_OutputBuffer = DAC_OUTPUTBUFFER_ENABLE;
+  if (HAL_DAC_ConfigChannel(&hdac, &sConfig, DAC_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN DAC_Init 2 */
+
+  /* USER CODE END DAC_Init 2 */
+
+}
+
+/**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
+
+  /* USER CODE BEGIN TIM2_Init 0 */
+
+  /* USER CODE END TIM2_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 0;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 399;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
+
+  /* USER CODE END TIM2_Init 2 */
+
+}
+
+/**
+  * @brief GPIO Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_GPIO_Init(void)
+{
+
+  /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOH_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+
+}
+
+/* USER CODE BEGIN 4 */
+
+/* USER CODE END 4 */
+
+/**
+  * @brief  This function is executed in case of error occurrence.
+  * @retval None
+  */
+void Error_Handler(void)
+{
+  /* USER CODE BEGIN Error_Handler_Debug */
+  /* User can add his own implementation to report the HAL error return state */
+  __disable_irq();
+  while (1)
+  {
+  }
+  /* USER CODE END Error_Handler_Debug */
+}
+
+#ifdef  USE_FULL_ASSERT
+/**
+  * @brief  Reports the name of the source file and the source line number
+  *         where the assert_param error has occurred.
+  * @param  file: pointer to the source file name
+  * @param  line: assert_param error line source number
+  * @retval None
+  */
+void assert_failed(uint8_t *file, uint32_t line)
+{
+  /* USER CODE BEGIN 6 */
+  /* User can add his own implementation to report the file name and line number,
+     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+  /* USER CODE END 6 */
+}
+#endif /* USE_FULL_ASSERT */
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+    if (htim->Instance == TIM2)
+    {
+        // Increment the counter
+counter1 = counter1+K1;
+counter2 = counter2+K2;
+counter3 = counter3+K3;
+countertime = countertime+1;
+if (countertime % 0x00009C40 == 0)
+        {
+             time = time +1;
+if(time == 3)
+{
+time = 0;
+}
+
+}
+if(time == 0)
+{
+if ((counter1 & 0xFF000000) != ((counter1 - K1) & 0xFF000000))
+{
+// Get the DAC value from the sine wave lookup table based on the MSB 8 bits of the counter
+uint8_t index = (counter1 >> 24) & 0xFF;
+uint16_t dacValue = sineLookupTable[index];
+
+// Output the DAC value
+HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, dacValue);
+}
+}
+else if(time == 1)
+{
+if ((counter2 & 0xFF000000) != ((counter2 - K2) & 0xFF000000))
+{
+// Get the DAC value from the sine wave lookup table based on the MSB 8 bits of the counter
+uint8_t index = (counter2 >> 24) & 0xFF;
+uint16_t dacValue = sineLookupTable[index];
+
+// Output the DAC value
+HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, dacValue);
+}
+}
+else if(time == 2)
+{
+if ((counter3 & 0xFF000000) != ((counter3 - K3) & 0xFF000000))
+{
+// Get the DAC value from the sine wave lookup table based on the MSB 8 bits of the counter
+uint8_t index = (counter3 >> 24) & 0xFF;
+uint16_t dacValue = sineLookupTable[index];
+
+// Output the DAC value
+HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, dacValue);
+}
+}
+}
+}
